@@ -3,6 +3,7 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using System.Text.Json;
 using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace bizIncentive
 {
@@ -46,11 +47,8 @@ namespace bizIncentive
             var threads = catalogRes.SelectMany(catalog => catalog.threads).ToArray();
             var threadUrls = threads.Select(thread => string.Format(chanCdnThread, board, thread.no));
 
-            // start 4chanThread calls
-            //var threadsCount = threads.Length;
-            //var batch = 10;
-            var threadsTasks = threadUrls.Skip(2).Select(t => client.GetStringAsync(t)).ToArray(); // test this out
-
+            // start 4chanThread calls without batching
+            var threadsTasks = threadUrls.Skip(skipThreadsCount).Select(t => client.GetStringAsync(t)).ToArray(); // test this out
 
             PrintDivider();
             Console.WriteLine($"Matches for {searchTerm}");
@@ -108,19 +106,9 @@ namespace bizIncentive
                 return false;
             }
 
-            return text.IndexOf(phrase, StringComparison.OrdinalIgnoreCase) >= 0;
-        }
-
-        private static int CheckOccurrences(string text, string phrase)
-        {
-            int count = 0;
-            int a = 0;
-            while ((a = text.IndexOf(phrase, a, StringComparison.InvariantCultureIgnoreCase)) != -1)
-            {
-                a += phrase.Length;
-                count++;
-            }
-            return count;
+            string pattern = @$"\b{phrase}\b";
+            Match m = Regex.Match(text, pattern, RegexOptions.IgnoreCase);
+            return m.Success;
         }
 
         private static void PrintDivider()
