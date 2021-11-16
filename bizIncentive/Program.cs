@@ -14,66 +14,75 @@ namespace bizIncentive
 
         static async Task Main(string[] args)
         {
-            Console.WriteLine("Enter search term");
-            string searchTerm = Console.ReadLine();
-
-            while (searchTerm == string.Empty)
+            while (true)
             {
-                Console.WriteLine("Enter a valid search term");
-                searchTerm = Console.ReadLine();
-            }
+                Console.WriteLine("Enter search term");
+                string searchTerm = Console.ReadLine();
 
-            Console.WriteLine("Board you wish to scan (default=biz)");
-
-            var board = Console.ReadLine();
-            const string bizBoard = "biz";
-            board = board == string.Empty ? bizBoard : board;
-
-
-            Console.WriteLine("Skip first n threads? (default=2)");
-            var skipThreadsCountStr = Console.ReadLine();
-            int skipThreadsCount = 2;
-            if (!string.IsNullOrEmpty(skipThreadsCountStr))
-            {
-                skipThreadsCount = int.Parse(skipThreadsCountStr);
-            }
-
-            string chanCdnCatalogs = @$"https://a.4cdn.org/{board}/catalog.json";
-
-            var client = new HttpClient();
-            var res = await client.GetStringAsync(chanCdnCatalogs);
-
-            var catalogRes = JsonSerializer.Deserialize<CatalogRes[]>(res);
-            var threads = catalogRes.SelectMany(catalog => catalog.threads).ToArray();
-            var threadUrls = threads.Select(thread => string.Format(chanCdnThread, board, thread.no));
-
-            // start 4chanThread calls without batching
-            var threadsTasks = threadUrls.Skip(skipThreadsCount).Select(t => client.GetStringAsync(t)).ToArray(); // test this out
-
-            PrintDivider();
-            Console.WriteLine($"Matches for {searchTerm}");
-
-            PrintDivider();
-            var matchingThreads = threads.Where(t => IContains(t.sub, searchTerm) || IContains(t.com, searchTerm)).ToArray();
-            Console.WriteLine($"Op matches count: {matchingThreads.Length}");
-            foreach (var thread in matchingThreads)
-            {
-                Console.WriteLine(string.Format(chanThreadUrl, board, thread.no) + " - op match");
-            }
-
-            PrintDivider();
-            Console.WriteLine("Matches in threads");
-            var threadsRes = await Task.WhenAll(threadsTasks);
-            
-            var threadsParsed = threadsRes.Select(thread => JsonSerializer.Deserialize<Thread>(thread)).ToArray();
-            foreach (var thread in threadsParsed)
-            {
-                var matchingComments = thread.posts.Skip(1).Count(p => IContains(CleanComment(p.com), searchTerm)); // skip op's post as it is already checked
-                if (matchingComments > 0)
+                while (searchTerm == string.Empty)
                 {
-                    var threadNo = thread.posts.FirstOrDefault().no;
-                    Console.WriteLine(string.Format(chanThreadUrl, board, threadNo) + $" - {matchingComments} matches");
+                    Console.WriteLine("Enter a valid search term");
+                    searchTerm = Console.ReadLine();
                 }
+
+                if (searchTerm.Equals("exit", StringComparison.InvariantCultureIgnoreCase))
+                {
+                    break;
+                }
+
+                Console.WriteLine("Board you wish to scan (default=biz)");
+
+                var board = Console.ReadLine();
+                const string bizBoard = "biz";
+                board = board == string.Empty ? bizBoard : board;
+
+
+                Console.WriteLine("Skip first n threads? (default=2)");
+                var skipThreadsCountStr = Console.ReadLine();
+                int skipThreadsCount = 2;
+                if (!string.IsNullOrEmpty(skipThreadsCountStr))
+                {
+                    skipThreadsCount = int.Parse(skipThreadsCountStr);
+                }
+
+                string chanCdnCatalogs = @$"https://a.4cdn.org/{board}/catalog.json";
+
+                var client = new HttpClient();
+                var res = await client.GetStringAsync(chanCdnCatalogs);
+
+                var catalogRes = JsonSerializer.Deserialize<CatalogRes[]>(res);
+                var threads = catalogRes.SelectMany(catalog => catalog.threads).ToArray();
+                var threadUrls = threads.Select(thread => string.Format(chanCdnThread, board, thread.no));
+
+                // start 4chanThread calls without batching
+                var threadsTasks = threadUrls.Skip(skipThreadsCount).Select(t => client.GetStringAsync(t)).ToArray(); // test this out
+
+                PrintDivider();
+                Console.WriteLine($"Matches for {searchTerm}");
+
+                PrintDivider();
+                var matchingThreads = threads.Where(t => IContains(t.sub, searchTerm) || IContains(t.com, searchTerm)).ToArray();
+                Console.WriteLine($"Op matches count: {matchingThreads.Length}");
+                foreach (var thread in matchingThreads)
+                {
+                    Console.WriteLine(string.Format(chanThreadUrl, board, thread.no) + " - op match");
+                }
+
+                PrintDivider();
+                Console.WriteLine("Matches in threads");
+                var threadsRes = await Task.WhenAll(threadsTasks);
+
+                var threadsParsed = threadsRes.Select(thread => JsonSerializer.Deserialize<Thread>(thread)).ToArray();
+                foreach (var thread in threadsParsed)
+                {
+                    var matchingComments = thread.posts.Skip(1).Count(p => IContains(CleanComment(p.com), searchTerm)); // skip op's post as it is already checked
+                    if (matchingComments > 0)
+                    {
+                        var threadNo = thread.posts.FirstOrDefault().no;
+                        Console.WriteLine(string.Format(chanThreadUrl, board, threadNo) + $" - {matchingComments} matches");
+                    }
+                }
+
             }
 
             Console.WriteLine("Press any key to close");
